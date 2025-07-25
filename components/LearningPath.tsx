@@ -1,14 +1,8 @@
 import React, { useRef, useEffect } from 'react';
-import { SkillNode, LearningPathCollection, SkillStatus } from '../types';
+import { SkillNode, SkillStatus } from '../types';
 import { Check, PlayCircle, Lock, Star, ChevronsUpDown, Shield, Gem, Cpu } from 'lucide-react';
+import { useData } from '../hooks/useAppContext';
 
-interface LearningPathProps {
-    paths: LearningPathCollection;
-    activePathId: string;
-    onPathChange: (pathId: string) => void;
-    activeSkillTree: SkillNode[];
-    onNodeClick: (node: SkillNode, pathId: string) => void;
-}
 
 const getIconForNode = (node: SkillNode) => {
     if (node.type === 'exam') {
@@ -35,7 +29,6 @@ const SkillNodeComponent: React.FC<{ node: SkillNode; onNodeClick: () => void, s
     ].join(' ');
 
     const title = node.title.length > 40 ? node.title.substring(0, 37) + '...' : node.title;
-    const nodeLabel = node.type === 'exam' ? 'Simulation' : node.title;
 
     return (
         <div 
@@ -84,8 +77,9 @@ const SkillBranch: React.FC<{ node: SkillNode; onNodeClick: (node: SkillNode) =>
 };
 
 
-const LearningPath: React.FC<LearningPathProps> = ({ paths, activePathId, onPathChange, activeSkillTree, onNodeClick }) => {
-    const activePathInfo = paths[activePathId];
+const LearningPath: React.FC = () => {
+    const { mergedLearningPaths, activePathId, setActivePathId, activeSkillTree, handleNodeClick } = useData();
+    const activePathInfo = mergedLearningPaths[activePathId];
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -136,6 +130,8 @@ const LearningPath: React.FC<LearningPathProps> = ({ paths, activePathId, onPath
         };
     }, []);
 
+    if (!activePathInfo) return null; // or a loading state
+
     return (
         <section id="lernpfade" className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-6 shrink-0">
@@ -146,10 +142,10 @@ const LearningPath: React.FC<LearningPathProps> = ({ paths, activePathId, onPath
                 <div className="relative w-72">
                     <select
                         value={activePathId}
-                        onChange={(e) => onPathChange(e.target.value)}
+                        onChange={(e) => setActivePathId(e.target.value)}
                         className="w-full appearance-none bg-slate-800 border border-slate-700 text-white py-2 pl-3 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        {Object.values(paths).map(path => (
+                        {Object.values(mergedLearningPaths).map(path => (
                             <option key={path.id} value={path.id} disabled={path.locked}>
                                 {path.title} {path.pro && ' (Pro)'} {path.locked && ' (Gesperrt)'}
                             </option>
@@ -162,7 +158,7 @@ const LearningPath: React.FC<LearningPathProps> = ({ paths, activePathId, onPath
                 <div ref={scrollContainerRef} className="skill-tree-container h-full">
                     <div className="skill-tree-horizontal">
                         {activeSkillTree.map(node => (
-                            <SkillBranch key={node.id} node={node} onNodeClick={(n) => onNodeClick(n, activePathId)} isRoot />
+                            <SkillBranch key={node.id} node={node} onNodeClick={(n) => handleNodeClick(n, activePathId)} isRoot />
                         ))}
                     </div>
                 </div>

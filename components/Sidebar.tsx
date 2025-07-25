@@ -1,18 +1,12 @@
 import React from 'react';
-import { View, User, LevelInfo } from '../types';
+import { View } from '../types';
 import { NAV_ITEMS } from '../constants';
 import { Bolt, LogOut, Settings, Shield, Gem } from 'lucide-react';
+import { useAuth } from '../hooks/useAppContext';
+import { useData } from '../hooks/useAppContext';
+import { useUI } from '../hooks/useAppContext';
 
-interface SidebarProps {
-    activeView: View;
-    setActiveView: (view: View) => void;
-    onUpgradeClick: () => void;
-    onLogout: () => void;
-    onSettingsClick: () => void;
-    currentUser: User;
-    levelInfo: LevelInfo;
-    hasNewAssignment: boolean;
-}
+interface SidebarProps {}
 
 const XpProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
     <div className="w-full bg-blue-900/70 rounded-full h-1.5 xp-progress-bar">
@@ -23,21 +17,26 @@ const XpProgressBar: React.FC<{ progress: number }> = ({ progress }) => (
     </div>
 );
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onUpgradeClick, onLogout, onSettingsClick, currentUser, levelInfo, hasNewAssignment }) => {
+const Sidebar: React.FC<SidebarProps> = () => {
+    const { currentUser, logout } = useAuth();
+    const { levelInfo, assignments } = useData();
+    const { view, setView, openUpgradeModal, openSettingsModal } = useUI();
     
+    if (!currentUser || !levelInfo) return null;
+
     const handleNavClick = (e: React.MouseEvent, id: string) => {
         e.preventDefault();
         if (id === 'upgrade') {
-            onUpgradeClick();
+            openUpgradeModal();
         } else if (id === 'admin') {
-            setActiveView(View.Admin);
+            setView(View.Admin);
         } else {
-            setActiveView(id as View);
+            setView(id as View);
         }
     };
 
     const navItemsToShow = NAV_ITEMS.filter(item => {
-        if (item.id === View.Team) {
+        if (item.id === View.Gilde) {
             return currentUser.role === 'meister' || currentUser.role === 'azubi';
         }
         if (item.id === View.Experts) {
@@ -45,6 +44,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onUpgradeC
         }
         return true;
     });
+
+    const hasNewAssignment = assignments.some(a => a.assignedTo === currentUser.id && !a.isCompleted);
 
     return (
         <aside className="w-64 bg-slate-900/80 backdrop-blur-sm p-4 flex flex-col justify-between border-r border-slate-700/50 shrink-0">
@@ -59,11 +60,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onUpgradeC
                             key={item.id}
                             href="#"
                             onClick={(e) => handleNavClick(e, item.id)}
-                            className={`nav-item flex items-center py-2.5 px-4 rounded-lg ${activeView === item.id ? 'active-nav' : ''}`}
+                            className={`nav-item flex items-center py-2.5 px-4 rounded-lg ${view === item.id ? 'active-nav' : ''}`}
                         >
                             <item.icon className="h-5 w-5 mr-3" />
                             <span>{item.label}</span>
-                            {item.id === View.Team && hasNewAssignment && <span className="notification-badge" title="Neue Aufgabe"></span>}
+                            {item.id === View.Gilde && hasNewAssignment && <span className="notification-badge" title="Neue Aufgabe"></span>}
                         </a>
                     ))}
                 </nav>
@@ -93,15 +94,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, onUpgradeC
                         </div>
                     </div>
                      <div className="mt-4 flex items-center justify-around">
-                        <button onClick={() => setActiveView(View.Admin)} className={`flex flex-col items-center text-slate-400 hover:text-white text-xs ${currentUser.role === 'meister' ? '' : 'hidden'}`} title="Admin Panel">
+                        <button onClick={() => setView(View.Admin)} className={`flex flex-col items-center text-slate-400 hover:text-white text-xs ${currentUser.role === 'meister' ? '' : 'hidden'}`} title="Admin Panel">
                             <Shield className="h-5 w-5" />
                             <span>Admin</span>
                         </button>
-                        <button onClick={onSettingsClick} className="flex flex-col items-center text-slate-400 hover:text-white text-xs" title="Profil & Tokens">
+                        <button onClick={openSettingsModal} className="flex flex-col items-center text-slate-400 hover:text-white text-xs" title="Profil & Tokens">
                             <Settings className="h-5 w-5"/>
                             <span>Profil</span>
                         </button>
-                        <button onClick={onLogout} className="flex flex-col items-center text-slate-400 hover:text-white text-xs" title="Abmelden">
+                        <button onClick={logout} className="flex flex-col items-center text-slate-400 hover:text-white text-xs" title="Abmelden">
                             <LogOut className="h-5 w-5"/>
                             <span>Logout</span>
                         </button>

@@ -1,18 +1,38 @@
-
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { MWDEvent, Expert, SkillCategory } from '../types';
 import { SKILL_CATEGORIES } from '../constants';
-import { Calendar, Video, Clock, Check, Tag } from 'lucide-react';
+import { Calendar, Video, Clock, Check, Tag, Plus } from 'lucide-react';
+import { useData, useUI } from '../hooks/useAppContext';
 
-interface EventsViewProps {
-    events: MWDEvent[];
-    experts: Expert[];
-}
 
-const EventCard: React.FC<{ event: MWDEvent; expert?: Expert }> = ({ event, expert }) => {
+const VideoPlayer: React.FC<{ videoId: string }> = ({ videoId }) => (
+    <div className="aspect-w-16 aspect-h-9 bg-black rounded-lg overflow-hidden">
+        <iframe
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="w-full h-full"
+        ></iframe>
+    </div>
+);
+
+
+const EventCard: React.FC<{ event: MWDEvent }> = ({ event }) => {
+    const { experts, registeredEventIds, handleToggleEventRegistration } = useData();
+    const { openModal } = useUI();
+
+    const expert = experts.find(e => e.id === event.expertId);
+    const isRegistered = registeredEventIds.has(event.id);
+
     const cardDate = new Date(event.date);
     const formattedDate = cardDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const formattedTime = cardDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+    const handlePastEventClick = () => {
+        openModal(`Aufzeichnung: ${event.title}`, <VideoPlayer videoId={event.videoId} />);
+    };
 
     return (
         <div className="glass-card p-6 rounded-xl flex flex-col transition-all duration-300">
@@ -48,35 +68,43 @@ const EventCard: React.FC<{ event: MWDEvent; expert?: Expert }> = ({ event, expe
                     </div>
                 ) : <div/>}
 
-                <a 
-                    href={event.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className={`px-4 py-2 rounded-lg font-bold flex items-center transition ${event.isUpcoming ? 'bg-blue-600 hover:bg-blue-500' : 'bg-slate-600 hover:bg-slate-500'}`}
-                >
-                    {event.isUpcoming ? (
-                        <>
-                            <Check className="h-5 w-5 mr-2" />
-                            Anmelden
-                        </>
-                    ) : (
-                        <>
-                            <Video className="h-5 w-5 mr-2" />
-                            Aufzeichnung
-                        </>
-                    )}
-                </a>
+                {event.isUpcoming ? (
+                     <button
+                        onClick={() => handleToggleEventRegistration(event.id)}
+                        className={`px-4 py-2 rounded-lg font-bold flex items-center transition ${isRegistered ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-500'}`}
+                    >
+                        {isRegistered ? (
+                            <>
+                                <Check className="h-5 w-5 mr-2" />
+                                Angemeldet
+                            </>
+                        ) : (
+                             <>
+                                <Plus className="h-5 w-5 mr-2" />
+                                Anmelden
+                            </>
+                        )}
+                    </button>
+                ) : (
+                    <button
+                        onClick={handlePastEventClick}
+                        className="px-4 py-2 rounded-lg font-bold flex items-center transition bg-slate-600 hover:bg-slate-500"
+                    >
+                         <Video className="h-5 w-5 mr-2" />
+                        Aufzeichnung ansehen
+                    </button>
+                )}
             </div>
         </div>
     );
 };
 
 
-const EventsView: React.FC<EventsViewProps> = ({ events, experts }) => {
+const EventsView: React.FC = () => {
+    const { events } = useData();
+    
     const upcomingEvents = events.filter(e => e.isUpcoming).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const pastEvents = events.filter(e => !e.isUpcoming).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    const findExpert = (expertId: number) => experts.find(e => e.id === expertId);
 
     return (
         <section id="events" className="fade-in">
@@ -88,7 +116,10 @@ const EventsView: React.FC<EventsViewProps> = ({ events, experts }) => {
                     <h3 className="text-2xl font-bold text-white mb-6 flex items-center"><Calendar className="h-6 w-6 mr-3 text-blue-400" />Kommende Events</h3>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {upcomingEvents.length > 0 ? upcomingEvents.map(event => (
-                            <EventCard key={event.id} event={event} expert={findExpert(event.expertId)} />
+                            <EventCard 
+                                key={event.id} 
+                                event={event} 
+                            />
                         )) : (
                             <div className="glass-card no-hover p-8 rounded-xl text-center lg:col-span-2">
                                 <p className="text-slate-500">Derzeit sind keine neuen Events geplant. Schauen Sie bald wieder vorbei!</p>
@@ -101,7 +132,10 @@ const EventsView: React.FC<EventsViewProps> = ({ events, experts }) => {
                     <h3 className="text-2xl font-bold text-white mb-6 flex items-center"><Clock className="h-6 w-6 mr-3 text-purple-400" />Vergangene Aufzeichnungen</h3>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {pastEvents.map(event => (
-                            <EventCard key={event.id} event={event} expert={findExpert(event.expertId)} />
+                            <EventCard 
+                                key={event.id} 
+                                event={event} 
+                            />
                         ))}
                     </div>
                 </div>

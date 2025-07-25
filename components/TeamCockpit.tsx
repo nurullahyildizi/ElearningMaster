@@ -1,30 +1,22 @@
-
-
 import React from 'react';
 import { User, Company, LearningPathCollection, LearningPathAssignment, BerichtsheftEntry } from '../../types';
 import MeisterTeamView from './team/MeisterTeamView';
 import AzubiTeamView from './team/AzubiTeamView';
+import { useAuth, useData } from "../hooks/useAppContext";
 
-interface TeamCockpitProps {
-    currentUser: User;
-    users: User[];
-    companies: Company[];
-    learningPaths: LearningPathCollection;
-    assignments: LearningPathAssignment[];
-    onAssignTask: (pathId: string, assignedTo: string) => void;
-    berichtsheft: BerichtsheftEntry[];
-    onUpdateBerichtsheft: (newBerichtsheft: BerichtsheftEntry[]) => void;
-}
+const TeamCockpit: React.FC = () => {
+    const { currentUser } = useAuth();
+    const { users, companies, assignments, berichtsheft, mergedLearningPaths, handleAssignTask, handleUpdateBerichtsheft, guildPinboard, setGuildPinboard } = useData();
 
-const TeamCockpit: React.FC<TeamCockpitProps> = (props) => {
-    const { currentUser, users, companies, learningPaths, assignments, onAssignTask, berichtsheft, onUpdateBerichtsheft } = props;
+    if(!currentUser) return null;
+
     const company = companies.find(c => c.id === currentUser.companyId);
 
     if (!currentUser.companyId || !company) {
         return (
              <div className="text-center p-8 glass-card no-hover rounded-xl">
-                <h2 className="text-2xl font-bold text-white mb-2">Keinem Team zugeordnet</h2>
-                <p className="text-slate-400">Du bist derzeit keinem Unternehmen zugeordnet. Bitte wende dich an einen Administrator, um dein Unternehmen einzurichten.</p>
+                <h2 className="text-2xl font-bold text-white mb-2">Keiner Gilde zugeordnet</h2>
+                <p className="text-slate-400">Du bist derzeit keinem Unternehmen bzw. keiner Gilde zugeordnet. Bitte wende dich an einen Administrator, um dein Unternehmen einzurichten.</p>
             </div>
         )
     }
@@ -32,10 +24,10 @@ const TeamCockpit: React.FC<TeamCockpitProps> = (props) => {
     const teamMembers = users.filter(u => u.companyId === currentUser.companyId);
 
     return (
-        <section id="team-cockpit" className="fade-in">
+        <section id="guild-view" className="fade-in">
             <div className="flex justify-between items-start mb-8">
                 <div>
-                    <h2 className="text-3xl font-bold text-white">Team-Cockpit</h2>
+                    <h2 className="text-3xl font-bold text-white">Gilden-Zentrale</h2>
                     <p className="text-slate-400 text-lg">{company.name}</p>
                 </div>
                  <div className="flex -space-x-4">
@@ -55,11 +47,13 @@ const TeamCockpit: React.FC<TeamCockpitProps> = (props) => {
                 <MeisterTeamView 
                     currentUser={currentUser} 
                     teamMembers={teamMembers}
-                    learningPaths={learningPaths}
+                    learningPaths={mergedLearningPaths}
                     assignments={assignments}
-                    onAssignTask={onAssignTask}
+                    onAssignTask={handleAssignTask}
                     berichtsheft={berichtsheft}
-                    onUpdateBerichtsheft={onUpdateBerichtsheft}
+                    onUpdateBerichtsheft={handleUpdateBerichtsheft}
+                    guildPinboard={guildPinboard}
+                    onUpdatePinboard={setGuildPinboard}
                 />
             )}
 
@@ -67,17 +61,17 @@ const TeamCockpit: React.FC<TeamCockpitProps> = (props) => {
                 <AzubiTeamView 
                     currentUser={currentUser} 
                     teamMembers={teamMembers} 
-                    learningPaths={learningPaths}
+                    learningPaths={mergedLearningPaths}
                     assignments={assignments}
                     berichtsheft={berichtsheft}
-                    onUpdateBerichtsheft={onUpdateBerichtsheft}
+                    onUpdateBerichtsheft={handleUpdateBerichtsheft}
                 />
             )}
             
             {currentUser.role === 'user' && (
                  <div className="text-center p-8 glass-card no-hover rounded-xl">
-                    <h2 className="text-2xl font-bold text-white mb-2">Team-Funktionen</h2>
-                    <p className="text-slate-400">Team-Funktionen sind für Meister und Azubis verfügbar. Deine aktuelle Rolle ist "Benutzer".</p>
+                    <h2 className="text-2xl font-bold text-white mb-2">Gilden-Funktionen</h2>
+                    <p className="text-slate-400">Gilden-Funktionen sind für Meister und Azubis verfügbar. Deine aktuelle Rolle ist "Benutzer".</p>
                 </div>
             )}
 

@@ -1,17 +1,12 @@
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Star, Ticket } from 'lucide-react';
-import { User } from '../types';
+import { useAuth } from '../hooks/useAppContext';
+import { useData } from '../hooks/useAppContext';
+import GlobalSearch from './search/GlobalSearch';
 
-
-interface HeaderProps {
-    lastXpGain: number;
-    currentUser: User;
-}
-
-const Header: React.FC<HeaderProps> = ({ lastXpGain, currentUser }) => {
+const Header: React.FC = () => {
+    const { currentUser } = useAuth();
+    const { lastXpGain } = useData();
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [hasNotification, setHasNotification] = useState(true);
     const notificationRef = useRef<HTMLDivElement>(null);
@@ -48,6 +43,8 @@ const Header: React.FC<HeaderProps> = ({ lastXpGain, currentUser }) => {
     }, []);
 
 
+    if (!currentUser) return null;
+
     return (
         <header className="flex justify-between items-center mb-8 shrink-0 relative">
             <div>
@@ -59,11 +56,12 @@ const Header: React.FC<HeaderProps> = ({ lastXpGain, currentUser }) => {
                     <Star className="h-6 w-6 mr-1 fill-current" /> +{lastXpGain} XP
                 </div>
             )}
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-4">
+                <GlobalSearch />
                 <div className="flex items-center space-x-2 bg-slate-800/50 px-3 py-1.5 rounded-full">
                     <Ticket className="h-5 w-5 text-amber-400" />
                     <span className="font-bold text-white">{currentUser.wissensTokens}</span>
-                    <span className="text-sm text-slate-400">Tokens</span>
+                    <span className="text-sm text-slate-400 hidden md:inline">Tokens</span>
                 </div>
                 <div className="relative" ref={notificationRef}>
                     <button onClick={toggleNotifications} className="relative">

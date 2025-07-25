@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, useRef, FormEvent } from 'react';
-import { MeisterProject, MeisterProjectStep, ChatMessage } from '../../types';
+import { MeisterProject, MeisterProjectStep, AiChatMessage } from '../../types';
 import { Lightbulb, List, FileText, Users, Award, Send, Bot, Loader2, ChevronsRight, Repeat } from 'lucide-react';
 import type { Chat } from '@google/genai';
 

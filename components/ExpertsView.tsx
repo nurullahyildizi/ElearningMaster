@@ -1,14 +1,12 @@
-
 import React from 'react';
 import { Expert } from '../types';
 import { SKILL_CATEGORIES } from '../constants';
 import { Ticket, Mic } from 'lucide-react';
-
-interface ExpertsViewProps {
-    experts: Expert[];
-}
+import { useData } from '../hooks/useAppContext';
 
 const ExpertCard: React.FC<{ expert: Expert }> = ({ expert }) => {
+    const { handleBookExpertSession } = useData();
+
     return (
         <div className="glass-card p-6 rounded-xl flex flex-col items-center text-center">
             <img src={expert.imageUrl} alt={expert.name} className="h-24 w-24 rounded-full border-4 border-slate-700 mb-4" />
@@ -26,14 +24,18 @@ const ExpertCard: React.FC<{ expert: Expert }> = ({ expert }) => {
                  <Ticket className="h-5 w-5 mr-2" />
                  {expert.costPerSession} Tokens / Session
             </div>
-            <button className="w-full mt-4 bg-blue-600 hover:bg-blue-500 transition text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center">
+            <button 
+                onClick={() => handleBookExpertSession(expert)}
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-500 transition text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center"
+            >
                 <Mic className="h-5 w-5 mr-2" /> Session buchen
             </button>
         </div>
     );
 }
 
-const ExpertsView: React.FC<ExpertsViewProps> = ({ experts }) => {
+const ExpertsView: React.FC = () => {
+    const { experts } = useData();
     return (
         <section id="experten" className="fade-in">
             <h2 className="text-3xl font-bold text-white mb-2">Experten-Sprechstunden</h2>

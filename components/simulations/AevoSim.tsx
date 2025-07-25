@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
 import type { Chat } from '@google/genai';
 import { getAevoFeedback } from '../../services/geminiService';
 import { User, Send, Bot, Loader2, Award, ChevronsRight, Repeat, UserCheck } from 'lucide-react';
-import { AevoFeedback, ChatMessage } from '../../types';
+import { AevoFeedback, AiChatMessage } from '../../types';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
 const APPRENTICE_PROMPT = `Du bist 'Jonas', ein deutscher Elektrotechnik-Azubi im ersten Lehrjahr. Du bist wissbegierig, aber unsicher und hast Respekt vor Strom. Du sprichst den Benutzer mit 'Sie' an. Deine Aufgabe ist es, auf die Anweisungen des Benutzers zu reagieren. Wenn eine Anweisung unklar ist, frage nach (z.B. 'Welches Kabel meinen Sie genau? Das braune oder das schwarze?'). Wenn der Benutzer eine Sicherheitsregel vergisst, weise ihn freundlich darauf hin (z.B. 'Sollten wir nicht zuerst die 5 Sicherheitsregeln anwenden, bevor wir anfangen?'). Deine Antworten sollten kurz und im Stil eines Lernenden sein. Erfinde kleine, realistische Probleme (z.B. 'Oh, die Schraube am Schalter klemmt ein bisschen.'). Bleibe immer in deiner Rolle als Jonas. Gib niemals Feedback oder Bewertungen.`;
@@ -26,7 +26,7 @@ const TypingIndicator: React.FC = () => (
 const AevoSim: React.FC<{ onExit: (completed: boolean) => void }> = ({ onExit }) => {
     const [simState, setSimState] = useState<'intro' | 'running' | 'feedback'>('intro');
     const [chatSession, setChatSession] = useState<Chat | null>(null);
-    const [history, setHistory] = useState<ChatMessage[]>([]);
+    const [history, setHistory] = useState<AiChatMessage[]>([]);
     const [feedback, setFeedback] = useState<AevoFeedback | null>(null);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);

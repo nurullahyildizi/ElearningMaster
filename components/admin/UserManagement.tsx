@@ -1,16 +1,15 @@
 
-
 import React, { useState, useMemo } from 'react';
-import { User, SubscriptionStatus, UserRole, Company } from '../../types';
+import { User, SubscriptionStatus, UserRole } from '../../types';
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { MOCK_COMPANY_DATA } from '../../constants';
 
 interface UserManagementProps {
     users: User[];
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-    companies: Company[];
 }
 
-const EditUserModal: React.FC<{ user: User, onSave: (updatedUser: User) => void, onClose: () => void, companies: Company[] }> = ({ user, onSave, onClose, companies }) => {
+const EditUserModal: React.FC<{ user: User, onSave: (updatedUser: User) => void, onClose: () => void }> = ({ user, onSave, onClose }) => {
     const [name, setName] = useState(user.name);
     const [subscription, setSubscription] = useState<SubscriptionStatus>(user.subscriptionStatus);
     const [role, setRole] = useState<UserRole>(user.role);
@@ -59,7 +58,7 @@ const EditUserModal: React.FC<{ user: User, onSave: (updatedUser: User) => void,
                                <label htmlFor="company" className="block text-sm font-medium text-slate-700">Unternehmen</label>
                                <select id="company" value={companyId} onChange={e => setCompanyId(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                                     <option value="none">Keine Zuordnung</option>
-                                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    {MOCK_COMPANY_DATA.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                </select>
                             </div>
                         </div>
@@ -76,7 +75,7 @@ const EditUserModal: React.FC<{ user: User, onSave: (updatedUser: User) => void,
 
 const ITEMS_PER_PAGE = 10;
 
-const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers, companies }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -156,7 +155,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers, compan
                                             {user.role}
                                         </span>
                                     </td>
-                                    <td className="p-3 text-slate-600">{companies.find(c => c.id === user.companyId)?.name || '-'}</td>
+                                    <td className="p-3 text-slate-600">{MOCK_COMPANY_DATA.find(c => c.id === user.companyId)?.name || '-'}</td>
                                     <td className="p-3">
                                         <div className="flex space-x-2">
                                             <button onClick={() => handleEdit(user)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-md"><Pencil className="h-4 w-4"/></button>
@@ -180,7 +179,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, setUsers, compan
                     </div>
                 </div>
             </div>
-             {editingUser && <EditUserModal user={editingUser} onSave={handleSaveUser} onClose={() => setEditingUser(null)} companies={companies} />}
+             {editingUser && <EditUserModal user={editingUser} onSave={handleSaveUser} onClose={() => setEditingUser(null)} />}
         </div>
     );
 };

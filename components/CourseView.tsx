@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { SkillNode, QuizQuestion, Flashcard, AiFlashcardState } from '../types';
 import { ArrowLeft, CheckCircle, Video, FileText, HelpCircle, Copy, RotateCw, ChevronLeft, ChevronRight, Check, X, Sparkles, Loader2, Star } from 'lucide-react';
 import { generateFlashcardsFromText } from '../services/geminiService';
+import { useData, useUI } from '../hooks/useAppContext';
+import { View } from '../types';
 
 type CourseTab = 'video' | 'text' | 'quiz' | 'flashcards';
 
@@ -175,13 +177,17 @@ const FlashcardComponent: React.FC<{
 interface CourseViewProps {
     courseNode: SkillNode;
     coursePathId: string;
-    onCompleteCourse: (courseId: string, pathId: string) => void;
-    onBack: () => void;
 }
 
-const CourseView: React.FC<CourseViewProps> = ({ courseNode, coursePathId, onCompleteCourse, onBack }) => {
+const CourseView: React.FC<CourseViewProps> = ({ courseNode, coursePathId }) => {
     const [activeTab, setActiveTab] = useState<CourseTab>('video');
+    const { handleCompleteNode } = useData();
+    const { setView } = useUI();
     const content = courseNode.content!;
+
+    const onBack = () => {
+        setView(View.LearningPath);
+    };
 
     const renderContent = () => {
         switch (activeTab) {
@@ -258,7 +264,7 @@ const CourseView: React.FC<CourseViewProps> = ({ courseNode, coursePathId, onCom
                 {courseNode.status !== 'completed' && (
                     <div className="mt-8 pt-6 border-t border-slate-700 flex justify-end">
                         <button 
-                            onClick={() => onCompleteCourse(courseNode.id, coursePathId)} 
+                            onClick={() => handleCompleteNode(courseNode.id, coursePathId)} 
                             className="bg-green-600 hover:bg-green-500 transition text-white font-bold py-3 px-6 rounded-lg flex items-center text-lg shadow-lg hover:shadow-green-500/30"
                         >
                             <CheckCircle className="h-6 w-6 mr-3" />

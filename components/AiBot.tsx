@@ -1,10 +1,9 @@
-
-
 import React, { useState, useRef, useEffect, FormEvent } from 'react';
 import { Bot, Send } from 'lucide-react';
-import { ChatMessage, User } from '../types';
+import { AiChatMessage } from '../types';
 import { startChat, sendMessageToBot } from '../services/geminiService';
 import type { Chat } from '@google/genai';
+import { useAuth } from '../hooks/useAppContext';
 
 const TypingIndicator: React.FC = () => (
     <div className="flex justify-start">
@@ -16,20 +15,19 @@ const TypingIndicator: React.FC = () => (
     </div>
 );
 
-interface AiBotProps {
-    currentUser: User;
-}
-
-const AiBot: React.FC<AiBotProps> = ({ currentUser }) => {
+const AiBot: React.FC = () => {
+    const { currentUser } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [messages, setMessages] = useState<AiChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const chatRef = useRef<Chat | null>(null);
     const chatWindowRef = useRef<HTMLDivElement>(null);
     
     useEffect(() => {
-        setMessages([{ sender: 'bot', text: `Hallo ${currentUser.name.split(' ')[0]}! Ich bin dein KI-Mentor. Wie kann ich dir heute helfen?` }])
+        if (currentUser) {
+            setMessages([{ sender: 'bot', text: `Hallo ${currentUser.name.split(' ')[0]}! Ich bin dein KI-Mentor. Wie kann ich dir heute helfen?` }])
+        }
     }, [currentUser]);
 
     useEffect(() => {
@@ -64,6 +62,8 @@ const AiBot: React.FC<AiBotProps> = ({ currentUser }) => {
         }
         setIsLoading(false);
     };
+    
+    if (!currentUser) return null;
 
     return (
         <>

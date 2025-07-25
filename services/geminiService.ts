@@ -1,7 +1,5 @@
-
-
 import { GoogleGenAI, Chat, GenerateContentResponse, Type } from "@google/genai";
-import { Flashcard, DailyTip, JobAnalysis, Job, SkillCategory, AevoFeedback, PlacedComponent, DigitalTwinFeedback, PlanningScenario, UserCalculation, PlanningFeedback, Wire, DigitalTwinFault, TroubleshootingScenario } from '../types';
+import { Flashcard, DailyTip, JobAnalysis, Job, SkillCategory, AevoFeedback, PlacedComponent, DigitalTwinFeedback, PlanningScenario, UserCalculation, PlanningFeedback, Wire, DigitalTwinFault, TroubleshootingScenario, SearchableItem, SearchResult, CareerRoadmapStep, ApplicationAnalysis } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -91,6 +89,81 @@ export const generateFlashcardsFromText = async (lessonText: string): Promise<Fl
         throw new Error("Konnte die KI-Karteikarten nicht erstellen. Versuchen Sie es später erneut.");
     }
 };
+
+
+const GLOBAL_SEARCH_SCHEMA = {
+    type: Type.ARRAY,
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            id: { type: Type.STRING },
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            category: { type: Type.STRING, enum: ['courses', 'community', 'experts'] },
+            rank: { type: Type.NUMBER },
+            pathId: { type: Type.STRING }
+        },
+        required: ["id", "title", "description", "category", "rank"]
+    },
+};
+
+export const performGlobalSearch = async (query: string, searchableItems: SearchableItem[]): Promise<SearchResult[]> => {
+    if (!API_KEY) {
+        throw new Error("API key not configured.");
+    }
+
+    const prompt = `You are a powerful semantic search engine for "MeisterWerk Digital", a learning platform for German electricians. Your task is to analyze the user's query and find the most relevant items from the provided list of content. Rank the results by relevance.
+
+User Query (in German): "${query}"
+
+Available Content (JSON format):
+\`\`\`json
+${JSON.stringify(searchableItems)}
+\`\`\`
+
+Instructions:
+1.  Understand the user's intent, even if it's colloquial German.
+2.  Compare the query against the title and description of each item.
+3.  Return an array of the most relevant items (max 10).
+4.  Assign a relevance \`rank\` to each result (1 is most relevant).
+5.  Ensure the \`id\`, \`title\`, \`description\`, \`category\`, and especially \`pathId\` (if it exists) from the original item are included in the result. The \`pathId\` is crucial for navigation.
+6.  Return the results as a JSON array matching the schema.`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: GLOBAL_SEARCH_SCHEMA,
+            },
+        });
+
+        const jsonText = response.text.trim();
+        const results = JSON.parse(jsonText);
+
+        // Basic validation
+        if (!Array.isArray(results)) {
+            throw new Error("AI returned data in an unexpected format.");
+        }
+        
+        // The id from the AI might be a number, but our types expect string or number. Let's ensure it's a string from the original data where applicable.
+        const typedResults: SearchResult[] = results.map(res => {
+            const originalItem = searchableItems.find(item => item.id.toString() === res.id.toString() && item.category === res.category);
+            return {
+                ...res,
+                id: originalItem ? originalItem.id : res.id,
+            }
+        });
+        
+        return typedResults.sort((a, b) => a.rank - b.rank);
+
+    } catch (error) {
+        console.error("Error performing global search with Gemini:", error);
+        throw new Error("Die KI-Suche konnte nicht durchgeführt werden.");
+    }
+};
+
 
 
 // --- AI-Powered Fault Generation for Digital Twin ---
@@ -515,5 +588,105 @@ Beispiel für einen Fehler: "Spule von Schütz K1 hat Unterbrechung".
     } catch (error) {
         console.error("Error generating troubleshooting scenario:", error);
         throw new Error("KI-Szenario für Fehlersuche konnte nicht generiert werden.");
+    }
+};
+
+const CAREER_ROADMAP_SCHEMA = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING, description: "Titel des Roadmap-Schritts." },
+      description: { type: Type.STRING, description: "Kurze Beschreibung des Schritts." },
+      type: { type: Type.STRING, enum: ["learn", "practice", "certify"], description: "Art des Schritts." },
+      duration: { type: Type.STRING, description: "Geschätzte Dauer (z.B. '3 Monate', '2 Wochen')." },
+      completed: { type: Type.BOOLEAN, description: "Gibt an, ob der Nutzer diesen Schritt basierend auf seinem Profil bereits erfüllt hat." },
+    },
+    required: ["title", "description", "type", "duration", "completed"]
+  }
+};
+
+export const generateCareerRoadmap = async (goal: string, skillData: Record<SkillCategory, number>): Promise<CareerRoadmapStep[]> => {
+    if (!API_KEY) throw new Error("API key not configured.");
+
+    const prompt = `Du bist ein KI-Karriere-Coach für deutsche Elektrofachkräfte.
+Ein Nutzer hat folgendes Karriereziel: "${goal}"
+Sein aktuelles Fähigkeitsprofil (XP-Punkte pro Kategorie) ist: ${JSON.stringify(skillData)}
+
+Deine Aufgabe:
+1.  Erstelle eine realistische Schritt-für-Schritt-Roadmap (ca. 5-7 Schritte), um dieses Ziel zu erreichen.
+2.  Berücksichtige das deutsche Ausbildungssystem (Geselle, Meister, Techniker etc.).
+3.  Analysiere das Fähigkeitsprofil. Markiere Schritte als "completed: true", wenn die Fähigkeiten des Nutzers bereits ausreichen (z.B. solide Grundlagen).
+4.  Gib eine Mischung aus Lernschritten ('learn'), praktischen Übungen ('practice') und offiziellen Zertifizierungen ('certify') aus.
+5.  Gib das Ergebnis als JSON-Array zurück, das dem Schema entspricht.
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: CAREER_ROADMAP_SCHEMA,
+            },
+        });
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText) as CareerRoadmapStep[];
+    } catch (error) {
+        console.error("Error generating career roadmap:", error);
+        throw new Error("KI-Karriereplan konnte nicht erstellt werden.");
+    }
+};
+
+const APPLICATION_ANALYSIS_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    summary: { type: Type.STRING, description: "Eine sehr kurze (1-2 Sätze) Zusammenfassung der Analyse." },
+    strengths: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Liste der positiven Aspekte und Übereinstimmungen." },
+    areasForImprovement: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Liste mit konkreten Verbesserungsvorschlägen für das Dokument." },
+    missingKeywords: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Liste wichtiger Schlüsselwörter aus der Stellenbeschreibung, die im Dokument fehlen." },
+  },
+  required: ["summary", "strengths", "areasForImprovement", "missingKeywords"]
+};
+
+export const analyzeApplicationDocuments = async (jobDescription: string, userDocument: string): Promise<ApplicationAnalysis> => {
+    if (!API_KEY) throw new Error("API key not configured.");
+
+    const prompt = `Du bist ein professioneller deutscher Recruiter spezialisiert auf das Elektrohandwerk.
+Analysiere die Bewerbungsunterlagen eines Kandidaten (Bewerbungstext oder Lebenslauf) im Vergleich zur Stellenbeschreibung.
+Gib konstruktives, umsetzbares Feedback. Sei direkt, aber höflich.
+
+**Stellenbeschreibung:**
+---
+${jobDescription}
+---
+
+**Bewerbungsunterlagen:**
+---
+${userDocument}
+---
+
+**Deine Aufgabe:**
+Erstelle eine Analyse und gib sie als JSON-Objekt zurück, das dem Schema entspricht.
+-   **summary**: Fasse die Passung kurz zusammen.
+-   **strengths**: Was ist gut und passt zur Stelle?
+-   **areasForImprovement**: Was kann der Bewerber konkret verbessern, um besser zu passen? (z.B. "Heben Sie Ihre Erfahrung mit KNX stärker hervor.")
+-   **missingKeywords**: Welche wichtigen Begriffe aus der Stellenanzeige fehlen im Dokument des Bewerbers?
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: APPLICATION_ANALYSIS_SCHEMA,
+            },
+        });
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText) as ApplicationAnalysis;
+    } catch (error) {
+        console.error("Error analyzing application documents:", error);
+        throw new Error("KI-Analyse der Bewerbung ist fehlgeschlagen.");
     }
 };

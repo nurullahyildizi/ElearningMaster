@@ -1,5 +1,5 @@
 {
-  "name": "meisterwerk-digital",
+  "name": "",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,12 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^18.2.0",
     "lucide-react": "^0.417.0",
     "@google/genai": "^1.10.0",
     "recharts": "^2.12.7",
-    "firebase": "^12.0.0"
+    "react-dom": "^18.2.0",
+    "firebase": "^12.0.0",
+    "@tldraw/tldraw": "2.1.4"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

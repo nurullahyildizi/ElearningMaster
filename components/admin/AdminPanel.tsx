@@ -1,26 +1,20 @@
-
-
 import React, { useState } from 'react';
 import AdminSidebar from './AdminSidebar';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import UserManagement from './UserManagement';
 import ContentManagement from './ContentManagement';
-import { LearningPathCollection, User, Company } from '../../types';
 import CompanyManagement from './CompanyManagement';
+import { useData, useUI } from '../../hooks/useAppContext';
+import { View } from '../../types';
 
 type AdminView = 'dashboard' | 'users' | 'content' | 'companies';
 
 interface AdminPanelProps {
-    learningPaths: LearningPathCollection;
-    setLearningPaths: React.Dispatch<React.SetStateAction<LearningPathCollection>>;
-    users: User[];
-    setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-    companies: Company[];
-    setCompanies: React.Dispatch<React.SetStateAction<Company[]>>;
     onExit: () => void;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ learningPaths, setLearningPaths, users, setUsers, companies, setCompanies, onExit }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
+    const { learningPaths, setLearningPaths, users, setUsers, companies, setCompanies } = useData();
     const [view, setView] = useState<AdminView>('dashboard');
 
     const renderView = () => {
@@ -28,7 +22,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ learningPaths, setLearningPaths
             case 'dashboard':
                 return <AnalyticsDashboard users={users} learningPaths={learningPaths} />;
             case 'users':
-                return <UserManagement users={users} setUsers={setUsers} companies={companies} />;
+                return <UserManagement users={users} setUsers={setUsers} />;
             case 'content':
                 return <ContentManagement learningPaths={learningPaths} setLearningPaths={setLearningPaths} />;
             case 'companies':

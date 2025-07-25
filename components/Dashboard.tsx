@@ -1,23 +1,15 @@
-
-
-
-
 import React from 'react';
-import { SkillNode, LevelInfo, DailyTip, LearningPathCollection, User, SimulationType, CommunityPost } from '../../types';
-import { ACHIEVEMENT_DATA, SIM_DATA } from '../constants';
+import { SkillNode, SimulationType, View } from '../types';
+import { ACHIEVEMENT_DATA } from '../constants';
 import { Play, MessageSquare, Star, Award, BookOpen, Lightbulb, BadgeCheck, Trophy, ArrowRight, GitMerge, Cpu } from 'lucide-react';
+import { useAuth } from '../hooks/useAppContext';
+import { useData } from '../hooks/useAppContext';
+import { useUI } from '../hooks/useAppContext';
 
 interface DashboardProps {
     activeCourse: SkillNode | undefined;
     onStartCourse: () => void;
     onStartSimulation: (type: SimulationType, xp: number, isPro: boolean, scenarioOrModeId: string) => void;
-    levelInfo: LevelInfo;
-    dailyTip: DailyTip | null;
-    learningPaths: LearningPathCollection;
-    currentUser: User;
-    isNewUser: boolean;
-    onNavigateToLearningPath: () => void;
-    communityPosts: CommunityPost[];
 }
 
 const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string | number, color: string }> = ({ icon, label, value, color }) => (
@@ -32,12 +24,21 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string |
     </div>
 );
 
-const TrophiesWidget: React.FC<{ unlockedAchievements: string[], learningPaths: LearningPathCollection }> = ({ unlockedAchievements, learningPaths }) => {
-    const completedPaths = Object.values(learningPaths).filter(p => {
+const TrophiesWidget: React.FC = () => {
+    const { currentUser } = useAuth();
+    const { mergedLearningPaths } = useData();
+
+    if (!currentUser) return null;
+
+    const completedPaths = Object.values(mergedLearningPaths).filter(p => {
         const allNodes = p.nodes.flatMap(n => n.children ? [n, ...n.children] : [n]);
         const contentNodes = allNodes.filter(n => n.content || n.type === 'exam');
         if (contentNodes.length === 0) return false;
-        return contentNodes.every(n => n.status === 'completed');
+        
+        const progress = currentUser.learningProgress?.[p.id];
+        if (!progress) return false;
+        
+        return contentNodes.every(n => progress.completedNodes.includes(n.id));
     });
 
     return (
@@ -48,7 +49,7 @@ const TrophiesWidget: React.FC<{ unlockedAchievements: string[], learningPaths: 
                     <h4 className="font-semibold text-blue-300 text-sm mb-2">Auszeichnungen</h4>
                     <div className="flex flex-wrap gap-4">
                         {Object.values(ACHIEVEMENT_DATA).slice(0, 5).map(ach => {
-                            const isUnlocked = unlockedAchievements.includes(ach.id);
+                            const isUnlocked = currentUser.unlockedAchievements.includes(ach.id);
                             return (
                                 <div key={ach.id} className="text-center" title={`${ach.name}\n${ach.description}`}>
                                     <div className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isUnlocked ? 'bg-yellow-400/20 border-yellow-400 text-yellow-300' : 'bg-slate-700/50 border-slate-600 text-slate-500'}`}>
@@ -95,9 +96,11 @@ const ForYouWidget: React.FC<{
     activeCourse?: SkillNode; 
     onStartCourse: () => void;
     onStartSimulation: (type: SimulationType, xp: number, isPro: boolean, scenarioOrModeId: string) => void;
-    currentUser: User;
-    communityPosts: CommunityPost[];
-}> = ({ activeCourse, onStartCourse, onStartSimulation, currentUser, communityPosts }) => {
+}> = ({ activeCourse, onStartCourse, onStartSimulation }) => {
+    const { currentUser } = useAuth();
+    const { communityPosts } = useData();
+
+    if (!currentUser) return null;
 
     let recommendation: React.ReactNode = null;
     if (activeCourse) {
@@ -116,25 +119,8 @@ const ForYouWidget: React.FC<{
                 </button>
             </div>
         );
-    } else {
-        // Fallback if no active course: suggest a generic simulation
-        const sim = SIM_DATA.find(s => s.pro === (currentUser.subscriptionStatus === 'pro') || !s.pro) || SIM_DATA[0];
-        recommendation = (
-            <div className="bg-slate-700/50 p-4 rounded-lg flex items-center justify-between hover:bg-slate-700 transition-colors cursor-pointer" onClick={() => onStartSimulation(sim.type, sim.xp, !!sim.pro, sim.modes ? sim.modes[0].id : 'default')}>
-                <div>
-                    <div className="flex items-center text-sm text-purple-400 font-semibold mb-1">
-                        <Cpu className="h-4 w-4 mr-2"/> Simulation empfohlen
-                    </div>
-                    <p className="font-semibold text-white mt-1">{sim.title}</p>
-                </div>
-                <button className="bg-purple-600 hover:bg-purple-500 transition text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                    <Play className="h-5 w-5 mr-2" /> Starten
-                </button>
-            </div>
-        );
-    }
-    
-    // Placeholder for Community Post
+    } 
+
     const communityPost = communityPosts[0];
 
     return (
@@ -142,7 +128,7 @@ const ForYouWidget: React.FC<{
             <h3 className="font-bold text-xl text-white mb-4">Für Dich empfohlen</h3>
             <div className="space-y-4">
                {recommendation}
-               {communityPost && (
+                {communityPost && (
                     <div className="bg-slate-700/50 p-4 rounded-lg flex items-center justify-between hover:bg-slate-700 transition-colors cursor-pointer">
                         <div>
                             <div className="flex items-center text-sm text-green-400 font-semibold mb-1">
@@ -154,25 +140,33 @@ const ForYouWidget: React.FC<{
                             <ArrowRight className="h-5 w-5" />
                         </button>
                     </div>
-               )}
+                )}
             </div>
         </div>
     );
 };
 
 
-const Dashboard: React.FC<DashboardProps> = ({ activeCourse, onStartCourse, onStartSimulation, levelInfo, dailyTip, learningPaths, currentUser, isNewUser, onNavigateToLearningPath, communityPosts }) => {
+const Dashboard: React.FC<DashboardProps> = ({ activeCourse, onStartCourse, onStartSimulation }) => {
+    const { currentUser, isNewUser } = useAuth();
+    const { levelInfo, dailyTip, allSkillNodes, mergedLearningPaths } = useData();
+    const { setView } = useUI();
+
+    if(!currentUser || !levelInfo) return null;
+
+    const completedCoursesCount = allSkillNodes.filter(n => n.status === 'completed' && n.content).length;
+
     return (
         <section id="dashboard" className="fade-in">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {isNewUser ? (
-                    <WelcomeWidget onNavigate={onNavigateToLearningPath} />
+                    <WelcomeWidget onNavigate={() => setView(View.LearningPath)} />
                 ) : (
-                    <ForYouWidget activeCourse={activeCourse} onStartCourse={onStartCourse} onStartSimulation={onStartSimulation} currentUser={currentUser} communityPosts={communityPosts} />
+                    <ForYouWidget activeCourse={activeCourse} onStartCourse={onStartCourse} onStartSimulation={onStartSimulation} />
                 )}
 
-                <TrophiesWidget unlockedAchievements={currentUser.unlockedAchievements} learningPaths={learningPaths} />
+                <TrophiesWidget />
 
                 {/* AI Tip of the day */}
                 {dailyTip && (
@@ -191,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ activeCourse, onStartCourse, onSt
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6 lg:col-span-3">
                      <StatCard icon={<Award className="h-7 w-7 text-yellow-400"/>} label="Level" value={levelInfo.level} color="#facc15" />
                      <StatCard icon={<Star className="h-7 w-7 text-purple-400"/>} label="Gesamt-XP" value={currentUser.xp.toLocaleString('de-DE')} color="#a855f7" />
-                     <StatCard icon={<BookOpen className="h-7 w-7 text-green-400"/>} label="Kurse gemeistert" value={Object.values(learningPaths).flatMap(p => p.nodes).filter(n => n.status === 'completed' && n.content).length} color="#22c55e" />
+                     <StatCard icon={<BookOpen className="h-7 w-7 text-green-400"/>} label="Kurse gemeistert" value={completedCoursesCount} color="#22c55e" />
                 </div>
             </div>
         </section>
