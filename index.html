@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MeisterWerk Digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --blue-glow: rgba(59, 130, 246, 0.4);
+            --purple-glow: rgba(91, 33, 182, 0.2);
+            --green-glow: rgba(34, 197, 94, 0.3);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* slate-950 */
+            color: #e2e8f0; /* slate-200 */
+            overflow: hidden;
+        }
+        
+        #celestial-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 50% -20%, rgba(30, 64, 175, 0.2), transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .glass-card {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover:not(.no-hover) {
+            border-color: rgba(96, 165, 250, 0.6);
+            transform: translateY(-6px);
+            box-shadow: 0 0 25px var(--blue-glow), 0 0 45px var(--purple-glow), 0 10px 20px rgba(0,0,0,0.3);
+        }
+        .active-nav {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 0 15px var(--blue-glow);
+        }
+        .nav-item {
+            transition: all 0.2s ease-in-out;
+            position: relative;
+        }
+        .nav-item:hover:not(.active-nav) {
+            background-color: #1e293b; /* slate-800 */
+            transform: translateX(4px);
+        }
+        .nav-item .notification-badge {
+            position: absolute;
+            top: 6px;
+            right: 10px;
+            height: 10px;
+            width: 10px;
+            background-color: #ef4444; /* red-500 */
+            border-radius: 50%;
+            border: 2px solid #0f172a; /* sidebar bg */
+            animation: pulse-red 2s infinite;
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .xp-progress-bar {
+            background-color: #1e3a8a; /* blue-900 */
+        }
+        .xp-progress-bar-inner {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            transition: width 0.5s ease-out;
+            box-shadow: 0 0 10px #3b82f6;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Learning Path Tree Styles */
+        .skill-tree-container {
+            padding: 2rem;
+            cursor: grab;
+            overflow-x: auto;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .skill-tree-container.grabbing {
+            cursor: grabbing;
+        }
+        .skill-tree-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .skill-tree-horizontal {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 2rem;
+            min-height: 100%;
+        }
+
+        .skill-branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .skill-branch-children {
+            display: flex;
+            position: relative;
+            margin-top: 80px;
+            padding: 0 10px;
+        }
+
+        /* Vertical line from parent down */
+        .skill-branch > .skill-node + .skill-branch-children::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 40px;
+            background: #334155;
+            transition: background-color 0.5s ease;
+        }
+
+        /* Vertical line from child up */
+        .skill-branch-children > .skill-branch::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 40px;
+            background: #334155;
+            transition: background-color 0.5s ease;
+        }
+        
+        .skill-branch.is-completed > .skill-node + .skill-branch-children::before,
+        .skill-branch-children > .skill-branch.is-completed::before {
+            background: #22c55e;
+            box-shadow: 0 0 8px var(--green-glow);
+        }
+         .skill-branch.is-active > .skill-node + .skill-branch-children::before,
+        .skill-branch-children > .skill-branch.is-active::before {
+            background: #3b82f6;
+            box-shadow: 0 0 8px var(--blue-glow);
+        }
+
+        /* Horizontal line connecting siblings */
+        .skill-branch-children > .skill-branch:not(:only-child)::after {
+            content: '';
+            position: absolute;
+            top: -40px;
+            height: 2px;
+            background: #334155;
+            transition: background-color 0.5s ease;
+        }
+
+        .skill-branch-children > .skill-branch:first-child:not(:only-child)::after {
+            left: 50%;
+            width: 50%;
+        }
+        .skill-branch-children > .skill-branch:last-child:not(:only-child)::after {
+            right: 50%;
+            width: 50%;
+        }
+        .skill-branch-children > .skill-branch:not(:first-child):not(:last-child)::after {
+            left: 0;
+            width: 100%;
+        }
+        
+        .skill-branch-children > .skill-branch.is-completed:not(:only-child)::after {
+             background: #22c55e;
+             box-shadow: 0 0 8px var(--green-glow);
+        }
+        
+        .skill-node .skill-node-tooltip {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+        .skill-node:hover .skill-node-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .skill-node { border: 2px solid #334155; transition: all 0.3s ease; background-color: #1e293b; }
+        .skill-node.completed { background-color: #166534; border-color: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
+        .skill-node.active { background-color: #1d4ed8; border-color: #3b82f6; animation: pulse 2s infinite; }
+        .skill-node.locked { opacity: 0.6; cursor: not-allowed; }
+        .skill-node.skill-node--exam.active { background-color: #5b21b6; border-color: #a78bfa; animation: pulse-purple 2s infinite; }
+        .skill-node.skill-node--exam { background-color: #4c1d95; border-color: #7c3aed; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        @keyframes pulse-purple {
+            0% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(167, 139, 250, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0); }
+        }
+        .typing-indicator span {
+            height: 8px; width: 8px; margin: 0 2px; background-color: #94a3b8; display: inline-block; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+        
+        .xp-gain-animation {
+            animation: xp-fly-up 1.5s ease-out forwards;
+        }
+        @keyframes xp-fly-up {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-40px) scale(1.2); opacity: 0; }
+        }
+
+        .meisterbrief-seal {
+            filter: drop-shadow(0 4px 3px rgba(0,0,0,0.4));
+            transition: transform 0.3s ease;
+        }
+        .meisterbrief-seal:hover {
+            transform: scale(1.1) rotate(5deg);
+        }
+        
+        .toast-notification {
+            animation: toast-in-out 4s ease-in-out forwards;
+        }
+        @keyframes toast-in-out {
+            0% { transform: translateY(100%); opacity: 0; }
+            20% { transform: translateY(0); opacity: 1; }
+            80% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(100%); opacity: 0; }
+        }
+        
+        /* Digital Twin 2D Styles */
+        .dt-container {
+            display: flex;
+            gap: 1.5rem; /* gap-6 */
+            color: white;
+            height: 100%;
+            max-height: 85vh; /* or a specific height like 900px */
+        }
+        .dt-control-panel {
+            background-color: rgba(15, 23, 42, 0.5); /* bg-slate-900/50 */
+            padding: 1rem; /* p-4 */
+            border-radius: 0.5rem; /* rounded-lg */
+            display: flex;
+            flex-direction: column;
+            gap: 1rem; /* gap-4 */
+            width: 350px;
+            flex-shrink: 0;
+            border: 1px solid rgba(51, 65, 85, 0.5);
+        }
+        .dt-workspace {
+            flex: 1;
+            background-color: rgba(15, 23, 42, 0.5);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dt-phase-switcher {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem; /* gap-1 */
+            padding: 0.25rem; /* p-1 */
+            background-color: #1e293b; /* bg-slate-800 */
+            border-radius: 9999px; /* rounded-full */
+            font-size: 0.75rem; /* text-xs */
+        }
+        .dt-phase-switcher button {
+            padding: 0.375rem 0.75rem; /* px-3 py-1.5 */
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem; /* gap-1.5 */
+            transition: all 0.2s;
+        }
+        .dt-phase-switcher button.active {
+            background-color: #3b82f6; /* bg-blue-600 */
+            box-shadow: 0 0 10px var(--blue-glow);
+        }
+
+        .dt-exam-board {
+            width: 95%;
+            height: 95%;
+            background-color: #f0e6d6; /* A realistic wood/pegboard color */
+            background-image: radial-gradient(#00000020 1px, transparent 1px);
+            background-size: 20px 20px;
+            position: relative;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+            border: 8px solid #d2b48c; /* Wood frame */
+        }
+
+        .dt-placed-component {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        .dt-placed-component.feedback-correct {
+            filter: drop-shadow(0 0 8px #22c55e);
+        }
+        .dt-placed-component.feedback-incorrect {
+            filter: drop-shadow(0 0 8px #ef4444);
+            animation: pulse-red 1.5s infinite;
+        }
+        .dt-placed-component.wiring-active {
+            filter: drop-shadow(0 0 10px #60a5fa);
+            transform: scale(1.1);
+        }
+        .dt-placed-component .light-on {
+            box-shadow: 0 0 20px 10px rgba(253, 224, 71, 0.7);
+        }
+
+        .dt-connection-point {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #4b5563;
+            border-radius: 50%;
+            border: 1px solid #9ca3b8;
+            cursor: crosshair;
+            transform: translate(-50%, -50%);
+            z-index: 11;
+            transition: all 0.2s ease;
+        }
+        .dt-connection-point:hover {
+            background-color: #f59e0b;
+            transform: translate(-50%, -50%) scale(1.5);
+        }
+
+        @keyframes pulse-red {
+             0% {
+                filter: drop-shadow(0 0 8px #ef4444);
+                opacity: 1; 
+            }
+             50% { 
+                filter: drop-shadow(0 0 4px #ef4444);
+                opacity: 0.7; 
+            }
+             100% {
+                filter: drop-shadow(0 0 8px #ef4444);
+                opacity: 1; 
+            }
+        }
+
+        /* Wiring & Probes Styles */
+        .dt-wire {
+            stroke-width: 3;
+            stroke-linecap: round;
+            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
+            pointer-events: all;
+        }
+        .dt-wire-L { stroke: #A0522D; }
+        .dt-wire-N { stroke: #00BFFF; }
+        .dt-wire-PE { stroke: #32CD32; }
+        .dt-wire-switched { stroke: #36454F; }
+
+        .dt-test-probe-line {
+            stroke-width: 3;
+            stroke-linecap: round;
+            pointer-events: none;
+        }
+        .dt-test-probe-line-L { stroke: #ef4444; }
+        .dt-test-probe-line-N { stroke: #3b82f6; }
+        .dt-test-probe-line-PE { stroke: #22c55e; }
+
+
+        /* Fluke Tester Styles */
+        .fluke-tester {
+            background-color: #facc15; /* Fluke Yellow */
+            color: #1f2937;
+            border-radius: 10px;
+            border: 2px solid #eab308;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3), 0 5px 15px rgba(0,0,0,0.4);
+            font-family: 'Roboto Mono', monospace;
+        }
+        .fluke-screen {
+            background-color: #8fbc8f; /* DarkSeaGreen - classic LCD */
+            border: 4px solid #4b5563;
+            border-radius: 5px;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.5);
+        }
+        .fluke-dial-container {
+            width: 150px;
+            height: 150px;
+            position: relative;
+        }
+        .fluke-dial {
+            position: absolute;
+            width: 110px;
+            height: 110px;
+            background-color: #374151;
+            border-radius: 50%;
+            border: 3px solid #1f2937;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            transition: transform 0.3s ease-out;
+            top: 50%;
+            left: 50%;
+            transform-origin: center;
+            transform: translate(-50%, -50%);
+        }
+         .fluke-dial::before {
+             content: '';
+             position: absolute;
+             top: 5px;
+             left: 50%;
+             transform: translateX(-50%);
+             width: 0;
+             height: 0;
+             border-left: 6px solid transparent;
+             border-right: 6px solid transparent;
+             border-bottom: 12px solid #e5e7eb;
+         }
+        .fluke-dial-label {
+            position: absolute;
+            font-size: 10px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .fluke-test-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #22c55e;
+            color: #166534;
+            border-bottom: 5px solid #15803d;
+            transition: all 0.1s ease;
+        }
+        .fluke-test-button:active {
+            border-bottom-width: 2px;
+            transform: translateY(3px);
+        }
+        .fluke-probe-port {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: black;
+            border: 2px solid #1f2937;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.4);
+        }
+        .probe-l { background-color: #ef4444; }
+        .probe-n { background-color: #3b82f6; }
+        .probe-pe { background-color: #22c55e; }
+
+        /* Planning Sim Styles */
+        .planning-input {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            text-align: center;
+            border-radius: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            width: 100%;
+            transition: all 0.2s ease-in-out;
+        }
+        .planning-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px var(--blue-glow);
+        }
+        .planning-input.correct {
+            background-color: #166534;
+            border-color: #22c55e;
+            color: white;
+        }
+        .planning-input.incorrect {
+            background-color: #991b1b;
+            border-color: #ef4444;
+            color: white;
+        }
+        .planning-input.highlight {
+            animation: pulse-blue 2s;
+        }
+
+        @keyframes pulse-blue {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.0); }
+            50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.0); }
+        }
+
+        /* NEW Landing Page Styles */
+        #root {
+            width: 100%;
+            height: 100vh;
+        }
+        .landing-page-container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .landing-header {
+            padding: 1.5rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: absolute;
+            width: 100%;
+            z-index: 10;
+        }
+        .landing-main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 8rem 2rem 4rem;
+            gap: 6rem;
+        }
+        .features-section {
+            width: 100%;
+            max-width: 1200px;
+        }
+        .landing-footer {
+            padding: 2rem;
+            text-align: center;
+            color: #94a3b8; /* slate-400 */
+            font-size: 0.875rem;
+        }
+        
+        /* NEW Auth Page Styles */
+        .auth-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        /* NEW Dashboard Widget Styles */
+        .welcome-widget {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            border: none;
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+        }
+
+        /* NEW Level Up Toast */
+        .level-up-toast {
+            animation: level-up-animation 4.5s ease-in-out forwards;
+        }
+        @keyframes level-up-animation {
+            0% { transform: translateY(120%) scale(0.8); opacity: 0; }
+            15% { transform: translateY(0) scale(1.05); opacity: 1; }
+            25% { transform: translateY(0) scale(1); opacity: 1; }
+            85% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(120%) scale(0.8); opacity: 0; }
+        }
+        
+        /* Team Cockpit & Community Tabs */
+        .progress-bar-bg {
+            background-color: #1e3a8a;
+        }
+        .progress-bar-fg {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            transition: width 0.5s ease-out;
+        }
+        
+        .community-tabs button {
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .community-tabs button.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@^19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@^0.417.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.10.0",
+    "recharts": "https://esm.sh/recharts@^2.12.7",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js",
+    "react-dom/": "https://esm.sh/react-dom@^19.0.0/",
+    "react/": "https://esm.sh/react@^19.0.0/",
+    "firebase/": "https://esm.sh/firebase@^12.0.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="text-slate-200">
+    <canvas id="celestial-canvas"></canvas>
+    <div id="root"></div>
+    <audio id="sound-complete" src="https://actions.google.com/sounds/v1/events/success.ogg" preload="auto"></audio>
+    <audio id="sound-xp" src="https://actions.google.com/sounds/v1/power_ups/power_up.ogg" preload="auto"></audio>
+    <audio id="sound-click" src="https://actions.google.com/sounds/v1/ui/button_press.ogg" preload="auto"></audio>
+    <audio id="sound-notification" src="https://actions.google.com/sounds/v1/notifications/ad_hoc.ogg" preload="auto"></audio>
+    <script type="module" src="/index.tsx"></script>
+    <script>
+    const canvas = document.getElementById('celestial-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height, stars = [], mouse = { x: null, y: null };
+    
+    function init() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+      
+      stars = [];
+      for (let i = 0; i < 200; i++) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius: Math.random() * 1.5,
+          vx: Math.floor(Math.random() * 10) - 5,
+          vy: Math.floor(Math.random() * 10) - 5,
+          originalRadius: Math.random() * 1.5
+        });
+      }
+    }
+    
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+      ctx.globalCompositeOperation = "lighter";
+      
+      for (let i = 0, x = stars.length; i < x; i++) {
+        const s = stars[i];
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.stroke();
+      }
+      
+      ctx.beginPath();
+      for (let i = 0, x = stars.length; i < x; i++) {
+        const starI = stars[i];
+        for (let j = 0, x = stars.length; j < x; j++) {
+          const starJ = stars[j];
+          const dist = Math.hypot(starI.x - starJ.x, starI.y - starJ.y);
+          if (dist < 100) {
+            ctx.beginPath();
+            ctx.moveTo(starI.x, starI.y);
+            ctx.lineTo(starJ.x, starJ.y);
+            ctx.strokeStyle = `rgba(59, 130, 246, ${1 - dist / 100})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+    
+    function update() {
+      for (let i = 0, x = stars.length; i < x; i++) {
+        const s = stars[i];
+        
+        if(mouse.x !== null && mouse.y !== null) {
+            const dist = Math.hypot(s.x - mouse.x, s.y - mouse.y);
+            if (dist < 150) {
+                s.radius = Math.min(s.originalRadius * (1 + (150 - dist) / 50), 5);
+            } else {
+                s.radius = s.originalRadius;
+            }
+        }
+
+        s.x += s.vx / 40;
+        s.y += s.vy / 40;
+        
+        if (s.x < 0 || s.x > width) s.vx = -s.vx;
+        if (s.y < 0 || s.y > height) s.vy = -s.vy;
+      }
+    }
+    
+    function tick() {
+      draw();
+      update();
+      requestAnimationFrame(tick);
+    }
+    
+    window.onresize = init;
+    canvas.addEventListener('mousemove', function(e) {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+    canvas.addEventListener('mouseleave', function(e) {
+      mouse.x = null;
+      mouse.y = null;
+    });
+
+    init();
+    tick();
+    </script>
+</body>
+</html>
